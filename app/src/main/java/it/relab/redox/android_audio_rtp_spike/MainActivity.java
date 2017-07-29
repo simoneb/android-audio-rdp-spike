@@ -6,7 +6,6 @@ import android.media.AudioManager;
 import android.net.rtp.AudioCodec;
 import android.net.rtp.AudioGroup;
 import android.net.rtp.AudioStream;
-import android.net.rtp.RtpStream;
 import android.os.Bundle;
 import android.os.StrictMode;
 import android.support.design.widget.FloatingActionButton;
@@ -19,6 +18,7 @@ import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.CompoundButton;
+import android.widget.EditText;
 import android.widget.ToggleButton;
 
 import java.net.Inet6Address;
@@ -29,8 +29,10 @@ import java.net.UnknownHostException;
 import java.util.Enumeration;
 
 public class MainActivity extends AppCompatActivity {
-    private final InetAddress serverAddress = InetAddress.getByName("52.209.106.16");
-//    private final InetAddress serverAddress = InetAddress.getByName("192.168.1.165");
+    private final InetAddress remoteAddress = InetAddress.getByName("52.209.106.16");
+    //    private final InetAddress remoteAddress = InetAddress.getByName("192.168.1.165");
+    private final int remotePort = 22222;
+
     private AudioGroup audioGroup;
     private AudioStream outputStream;
 
@@ -72,23 +74,15 @@ public class MainActivity extends AppCompatActivity {
 
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
         StrictMode.setThreadPolicy(policy);
-
         try {
-            AudioManager audio =  (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-            audio.setMode(AudioManager.MODE_IN_COMMUNICATION);
-
             audioGroup = new AudioGroup();
-            audioGroup.setMode(AudioGroup.MODE_ECHO_SUPPRESSION);
             InetAddress localAddress = InetAddress.getByAddress(getLocalIPAddress());
 
-            Log.w("Local address", localAddress.toString());
-
             outputStream = new AudioStream(localAddress);
-            outputStream.setCodec(AudioCodec.AMR);
+            outputStream.setCodec(AudioCodec.GSM_EFR);
             outputStream.setMode(AudioStream.MODE_NORMAL);
-            outputStream.associate(serverAddress, 22222);
 
-            Log.i("start speak", "start speak");
+            Log.w("Local address", outputStream.getLocalAddress().toString() + ":" + outputStream.getLocalPort());
         } catch (SocketException | UnknownHostException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -142,9 +136,25 @@ public class MainActivity extends AppCompatActivity {
 
     private void startSpeak() {
         try {
-            //set receiver(vlc player) machine ip address(please update with your machine ip)
+            AudioManager audio =  (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            audio.setMode(AudioManager.MODE_IN_COMMUNICATION);
+            audioGroup.setMode(AudioGroup.MODE_NORMAL);
+
+            String userRemoteAddress = ((EditText)findViewById(R.id.remoteAddress)).getText().toString();
+            String userRemotePort = ((EditText)findViewById(R.id.remotePort)).getText().toString();
+
+            boolean hasUserAddress = !userRemoteAddress.isEmpty();
+            boolean hasUserPort = !userRemotePort.isEmpty();
+
+            InetAddress chosenRemoteAddress = hasUserAddress ? InetAddress.getByName(userRemoteAddress) : remoteAddress;
+            int chosenRemotePort = hasUserPort ? Integer.parseInt(userRemotePort) : remotePort;
+
+            Log.w("Remote endpoint", chosenRemoteAddress.toString() + ":" + chosenRemotePort);
+
+            outputStream.associate(chosenRemoteAddress, chosenRemotePort);
             outputStream.join(audioGroup);
 
+            Log.i("start speak", "start speak");
         } catch (Exception e) {
             Log.e("----------------------", e.toString());
             e.printStackTrace();
@@ -153,7 +163,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void stopSpeak() {
         outputStream.join(null);
-
         audioGroup.setMode(AudioGroup.MODE_ON_HOLD);
 
         AudioManager audio =  (AudioManager) getSystemService(Context.AUDIO_SERVICE);
