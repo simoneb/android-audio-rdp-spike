@@ -21,22 +21,41 @@ import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ToggleButton;
 
+import com.sun.jna.Library;
+import com.sun.jna.Native;
+
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.Inet6Address;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Enumeration;
 
+import static android.system.OsConstants.SOL_SOCKET;
+import static android.system.OsConstants.SO_REUSEADDR;
+
 public class MainActivity extends AppCompatActivity {
-    private final InetAddress remoteAddress = InetAddress.getByName("52.209.106.16");
+    private final InetAddress remoteAddress = InetAddress.getByName("79.10.110.177");
     //    private final InetAddress remoteAddress = InetAddress.getByName("192.168.1.165");
-    private final int remotePort = 22222;
+//    private final int remotePort = 22222;
+    private final int remotePort = 41234;
 
     private AudioGroup audioGroup;
     private AudioStream outputStream;
 
     public MainActivity() throws UnknownHostException {
+    }
+
+    public interface CLibrary extends Library {
+        CLibrary INSTANCE = (CLibrary) Native.loadLibrary("c", CLibrary.class);
+
+        int setsockopt(int socket, int level, int optname, String optval, int optlen);
     }
 
     @Override
@@ -82,9 +101,32 @@ public class MainActivity extends AppCompatActivity {
             outputStream.setCodec(AudioCodec.GSM_EFR);
             outputStream.setMode(AudioStream.MODE_NORMAL);
 
+            Method method = outputStream.getClass().getSuperclass().getDeclaredMethod("getSocket");
+            method.setAccessible(true);
+            int fd = (int) method.invoke(outputStream);
+
+            Log.w("Socket file descriptor", "'" + fd + "'");
+
+            CLibrary.INSTANCE.setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, "1", 4);
+
+            DatagramSocket socket = new DatagramSocket(null);
+            socket.setReuseAddress(true);
+            socket.bind(new InetSocketAddress(outputStream.getLocalPort()));
+
+            byte[] bytes = "client identifier".getBytes();
+            socket.send(new DatagramPacket(bytes, bytes.length, remoteAddress, remotePort));
+
             Log.w("Local address", outputStream.getLocalAddress().toString() + ":" + outputStream.getLocalPort());
         } catch (SocketException | UnknownHostException e) {
             // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -136,12 +178,12 @@ public class MainActivity extends AppCompatActivity {
 
     private void startSpeak() {
         try {
-            AudioManager audio =  (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+            AudioManager audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
             audio.setMode(AudioManager.MODE_IN_COMMUNICATION);
             audioGroup.setMode(AudioGroup.MODE_NORMAL);
 
-            String userRemoteAddress = ((EditText)findViewById(R.id.remoteAddress)).getText().toString();
-            String userRemotePort = ((EditText)findViewById(R.id.remotePort)).getText().toString();
+            String userRemoteAddress = ((EditText) findViewById(R.id.remoteAddress)).getText().toString();
+            String userRemotePort = ((EditText) findViewById(R.id.remotePort)).getText().toString();
 
             boolean hasUserAddress = !userRemoteAddress.isEmpty();
             boolean hasUserPort = !userRemotePort.isEmpty();
@@ -165,7 +207,7 @@ public class MainActivity extends AppCompatActivity {
         outputStream.join(null);
         audioGroup.setMode(AudioGroup.MODE_ON_HOLD);
 
-        AudioManager audio =  (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        AudioManager audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         audio.setMode(AudioManager.MODE_NORMAL);
 
         Log.i("stop speak", "stop speak");
