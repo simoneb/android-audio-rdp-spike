@@ -4,9 +4,9 @@ android {
     compileSdkVersion 25
     buildToolsVersion "25.0.2"
     defaultConfig {
-        applicationId "it.relab.redox.android_audio_rtp_spike"
+        applicationId "it.relab.redox.android_audio_rtp_spike_simone"
         minSdkVersion 21
-        targetSdkVersion 25
+        targetSdkVersiqon 25
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"

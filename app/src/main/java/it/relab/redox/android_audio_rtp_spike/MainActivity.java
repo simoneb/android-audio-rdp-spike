@@ -41,10 +41,10 @@ import static android.system.OsConstants.SOL_SOCKET;
 import static android.system.OsConstants.SO_REUSEADDR;
 
 public class MainActivity extends AppCompatActivity {
-    private final InetAddress remoteAddress = InetAddress.getByName("79.10.110.177");
+    //    private final InetAddress remoteAddress = InetAddress.getByName("79.10.110.177");
+    private final InetAddress remoteAddress = InetAddress.getByName("34.253.105.81");
     //    private final InetAddress remoteAddress = InetAddress.getByName("192.168.1.165");
-//    private final int remotePort = 22222;
-    private final int remotePort = 41234;
+    private final int remotePort = 22222;
 
     private AudioGroup audioGroup;
     private AudioStream outputStream;
@@ -101,6 +101,17 @@ public class MainActivity extends AppCompatActivity {
             outputStream.setCodec(AudioCodec.GSM_EFR);
             outputStream.setMode(AudioStream.MODE_NORMAL);
 
+            //sendUdpMessageOnSocket();
+
+            Log.w("Local address", outputStream.getLocalAddress().toString() + ":" + outputStream.getLocalPort());
+        } catch (SocketException | UnknownHostException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
+
+    private void sendUdpMessageOnSocket() {
+        try {
             Method method = outputStream.getClass().getSuperclass().getDeclaredMethod("getSocket");
             method.setAccessible(true);
             int fd = (int) method.invoke(outputStream);
@@ -115,11 +126,6 @@ public class MainActivity extends AppCompatActivity {
 
             byte[] bytes = "client identifier".getBytes();
             socket.send(new DatagramPacket(bytes, bytes.length, remoteAddress, remotePort));
-
-            Log.w("Local address", outputStream.getLocalAddress().toString() + ":" + outputStream.getLocalPort());
-        } catch (SocketException | UnknownHostException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
         } catch (NoSuchMethodException e) {
             e.printStackTrace();
         } catch (InvocationTargetException e) {
